@@ -1,5 +1,7 @@
+var request = require('request')
 var express = require('express')
 var session = require('express-session')
+var ejs = require('ejs')
 var app = express()
 var knex = require('knex')({
   client: 'pg',
@@ -18,8 +20,6 @@ var User = ModelBase.extend({
 var passport = require('passport')
 var OAuth2Strategy = require('passport-oauth2').Strategy
 
-
-app.use(express.static(__dirname + '/public'))
 app.use(session({ secret: 'keyboard cat' }))
 app.use(passport.initialize())
 app.use(passport.session())
@@ -29,9 +29,10 @@ passport.serializeUser(function(user, done){
 })
 
 passport.deserializeUser(function(id, done){
-  User.findById(id, function(err, user){
-    done(null, user)
-  })
+  User.findById(id)
+    .then(function(user){
+      done(null, user)
+    })
 })
 
 passport.use(new OAuth2Strategy({
@@ -42,11 +43,24 @@ passport.use(new OAuth2Strategy({
     callbackURL: (process.env.HOSTNAME || 'http://localhost:5000') + '/login/auth'
   },
   function(accessToken, refreshToken, profile, cb) {
-    User.findOrCreate({ token: accessToken }, function (err, user) {
-      return cb(err, user)
-    })
-    //console.log(accessToken, refreshToken, profile, cb)
-    // return cb(null, {})
+    request({
+      url: 'https://discordapp.com/api/users/@me',
+      auth: {
+        bearer: accessToken
+      }}, function(err, res) {
+        var profile = JSON.parse(res.body)
+
+        User.findOrCreate({
+          discord_id: profile.id,
+          username: profile.username + '#' + profile.discriminator,
+          email: profile.email,
+          avatar: profile.avatar
+        })
+          .then(function(user) {
+            user.set({token: accessToken}).save()
+            return cb(null, user)
+          })
+      })
   }
 ))
 
@@ -56,21 +70,20 @@ app.set('view engine', 'ejs')
 
 // ENDPOINTS
 app.get('/', function (req, res) {
-  console.log('index.ejs')
-  res.render('index.ejs')
+  var user = (req.user || {attributes: {}})
+  var loggedIn = req.isAuthenticated()
+
+  console.log(user)
+
+  res.render('index', {user: user.attributes, loggedIn: loggedIn})
 })
 
 // Login
 app.get('/login',
-  passport.authenticate('oauth2', { scope: 'email' }))
+  passport.authenticate('oauth2', { scope: ['identify', 'email'] }))
 
 app.get('/login/auth',
-  passport.authenticate('oauth2', { failureRedirect: '/login' }),
-  function(req, res) {
-    console.log('We in here.')
-    // Successful authentication, redirect home.
-    res.redirect('/')
-  })
+  passport.authenticate('oauth2', { successRedirect: '/', failureRedirect: '/login' }))
 
 // ROUTES
 app.get('/api/v1/users', function(req, res){
@@ -145,7 +158,7 @@ app.get('/api/v1/user_game', function(req, res){
     })
 })
 
-// app.use(express.static(__dirname + '/public'))
+app.use(express.static(__dirname + '/public'))
 
 app.listen(app.get('port'), function () {
   console.log('Example app listening on port', app.get('port'))
