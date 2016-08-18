@@ -56,7 +56,8 @@ app.set('view engine', 'ejs')
 
 // ENDPOINTS
 app.get('/', function (req, res) {
-  res.render('index')
+  console.log('index.ejs')
+  res.render('index.ejs')
 })
 
 // Login
