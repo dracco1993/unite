@@ -70,22 +70,37 @@ app.set('views', __dirname + '/views')
 app.set('view engine', 'ejs')
 
 // ENDPOINTS
+// Home
 app.get('/', function (req, res) {
   var user = (req.user || {attributes: {}})
   var loggedIn = req.isAuthenticated()
 
-  console.log(user.attributes)
-
   res.render('index', {user: user.attributes, loggedIn: loggedIn})
 })
 
+
+// Join a Game
 app.get('/join', function (req, res) {
   var user = (req.user || {attributes: {}})
   var loggedIn = req.isAuthenticated()
 
-  console.log(user.attributes)
+  if(!loggedIn) {
+    res.redirect('/')
+  } else {
+    res.render('join', {user: user.attributes, loggedIn: loggedIn})
+  }
+})
 
-  res.render('join', {user: user.attributes, loggedIn: loggedIn})
+// Create a Game
+app.get('/create', function (req, res) {
+  var user = (req.user || {attributes: {}})
+  var loggedIn = req.isAuthenticated()
+
+  if(!loggedIn) {
+    res.redirect('/')
+  } else {
+    res.render('create', {user: user.attributes, loggedIn: loggedIn})
+  }
 })
 
 // Login
