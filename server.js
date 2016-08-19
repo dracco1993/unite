@@ -52,7 +52,8 @@ passport.use(new OAuth2Strategy({
 
         User.findOrCreate({
           discord_id: profile.id,
-          username: profile.username + '#' + profile.discriminator,
+          username: profile.username,
+          username_full: profile.username + '#' + profile.discriminator,
           email: profile.email,
           avatar: profile.avatar
         })
@@ -73,9 +74,18 @@ app.get('/', function (req, res) {
   var user = (req.user || {attributes: {}})
   var loggedIn = req.isAuthenticated()
 
-  console.log(user)
+  console.log(user.attributes)
 
   res.render('index', {user: user.attributes, loggedIn: loggedIn})
+})
+
+app.get('/join', function (req, res) {
+  var user = (req.user || {attributes: {}})
+  var loggedIn = req.isAuthenticated()
+
+  console.log(user.attributes)
+
+  res.render('join', {user: user.attributes, loggedIn: loggedIn})
 })
 
 // Login
