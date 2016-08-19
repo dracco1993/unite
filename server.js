@@ -11,10 +11,37 @@ var knex = require('knex')({
 var bookshelf = require('bookshelf')(knex)
 var ModelBase = require('bookshelf-modelbase')(bookshelf)
 
+bookshelf.plugin('registry')
+
 // MODELS
 // User
 var User = ModelBase.extend({
   tableName: 'users'
+})
+
+// Game
+var Game = bookshelf.Model.extend({
+  tableName: 'games',
+  teams: function() {
+    return this.hasMany(Team);
+  }
+  // toJSON: function () {
+  //   var attributes = bookshelf.Model.prototype.toJSON.call(this)
+  //   attributes['team_count'] = this.teams().count()
+  //   console.log(attributes)
+  // }
+})
+
+var Games = bookshelf.Collection.extend({
+  model: Game
+})
+
+// Team
+var Team = bookshelf.Model.extend({
+  tableName: 'teams',
+  game: function() {
+    return this.belongsTo(Game);
+  }
 })
 
 var passport = require('passport')
@@ -130,11 +157,12 @@ app.get('/api/v1/teams', function(req, res){
 })
 
 app.get('/api/v1/games', function(req, res){
-  knex
-    .select()
-    .from('games')
+  // knex
+  //   .select()
+  //   .from('games')
+  Games.forge().fetch({withRelated: ['teams']})
     .then(function(data){
-      res.json(data)
+      res.send(data.toJSON())
     })
 })
 
