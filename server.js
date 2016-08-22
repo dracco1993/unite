@@ -32,6 +32,7 @@ var Game = bookshelf.Model.extend({
   // }
 })
 
+// Game collection
 var Games = bookshelf.Collection.extend({
   model: Game
 })
@@ -44,6 +45,7 @@ var Team = bookshelf.Model.extend({
   }
 })
 
+// Discord authentication
 var passport = require('passport')
 var OAuth2Strategy = require('passport-oauth2').Strategy
 
@@ -107,28 +109,28 @@ app.get('/', function (req, res) {
 
 
 // Join a Game
-app.get('/join', function (req, res) {
+app.get('/directory', function (req, res) {
   var user = (req.user || {attributes: {}})
   var loggedIn = req.isAuthenticated()
 
   if(!loggedIn) {
     res.redirect('/')
   } else {
-    res.render('join', {user: user.attributes, loggedIn: loggedIn})
+    res.render(!req.query.id ? 'directory' : 'detail', {user: user.attributes, loggedIn: loggedIn})
   }
 })
 
-// Create a Game
-app.get('/create', function (req, res) {
-  var user = (req.user || {attributes: {}})
-  var loggedIn = req.isAuthenticated()
-
-  if(!loggedIn) {
-    res.redirect('/')
-  } else {
-    res.render('create', {user: user.attributes, loggedIn: loggedIn})
-  }
-})
+// // Create a Game
+// app.get('/create', function (req, res) {
+//   var user = (req.user || {attributes: {}})
+//   var loggedIn = req.isAuthenticated()
+//
+//   if(!loggedIn) {
+//     res.redirect('/')
+//   } else {
+//     res.render('create', {user: user.attributes, loggedIn: loggedIn})
+//   }
+// })
 
 // Login
 app.get('/login',
@@ -137,7 +139,7 @@ app.get('/login',
 app.get('/login/auth',
   passport.authenticate('oauth2', { successRedirect: '/', failureRedirect: '/login' }))
 
-// ROUTES
+// API ROUTES
 app.get('/api/v1/users', function(req, res){
   knex
     .select()
@@ -157,13 +159,17 @@ app.get('/api/v1/teams', function(req, res){
 })
 
 app.get('/api/v1/games', function(req, res){
-  // knex
-  //   .select()
-  //   .from('games')
-  Games.forge().fetch({withRelated: ['teams']})
-    .then(function(data){
-      res.send(data.toJSON())
-    })
+  if (!req.query.id) {
+    Games.forge().fetch({withRelated: ['teams']})
+      .then(function(data){
+        res.send(data.toJSON())
+      })
+  } else {
+    Games.query({where: {id: req.query.id}}).fetchOne({withRelated: ['teams']})
+      .then(function(data){
+        res.send(data.toJSON())
+      })
+  }
 })
 
 app.get('/api/v1/modes', function(req, res){
