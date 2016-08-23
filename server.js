@@ -134,21 +134,21 @@ app.get('/directory', function (req, res) {
   if(!loggedIn) {
     res.redirect('/')
   } else {
-    res.render(!req.query.id ? 'directory' : 'detail', {user: user.attributes, loggedIn: loggedIn})
+    res.render(!req.query.id ? 'directory' : 'detail', {user: user.attributes, loggedIn: loggedIn, query: req.query.id})
   }
 })
 
-// // Create a Game
-// app.get('/create', function (req, res) {
-//   var user = (req.user || {attributes: {}})
-//   var loggedIn = req.isAuthenticated()
-//
-//   if(!loggedIn) {
-//     res.redirect('/')
-//   } else {
-//     res.render('create', {user: user.attributes, loggedIn: loggedIn})
-//   }
-// })
+// Create a Game
+app.get('/create', function (req, res) {
+  var user = (req.user || {attributes: {}})
+  var loggedIn = req.isAuthenticated()
+
+  if(!loggedIn || !req.query.id) {
+    res.redirect('/')
+  } else {
+    res.render('create', {user: user.attributes, loggedIn: loggedIn})
+  }
+})
 
 // Login
 app.get('/login',
@@ -183,7 +183,7 @@ app.get('/api/v1/games', function(req, res){
         res.send(data.toJSON())
       })
   } else {
-    Games.query({where: {id: req.query.id}}).fetchOne({withRelated: ['teams', 'teams.user', 'teams.mode']})
+    Games.query({where: {id: req.query.id}}).fetchOne({withRelated: ['teams', 'teams.user', 'teams.mode', 'modes']})
       .then(function(data){
         res.send(data.toJSON())
       })
