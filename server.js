@@ -138,17 +138,17 @@ app.get('/directory', function (req, res) {
   }
 })
 
-// Create a Game
-app.get('/create', function (req, res) {
-  var user = (req.user || {attributes: {}})
-  var loggedIn = req.isAuthenticated()
-
-  if(!loggedIn || !req.query.id) {
-    res.redirect('/')
-  } else {
-    res.render('create', {user: user.attributes, loggedIn: loggedIn})
-  }
-})
+// // Create a Game
+// app.get('/create', function (req, res) {
+//   var user = (req.user || {attributes: {}})
+//   var loggedIn = req.isAuthenticated()
+//
+//   if(!loggedIn || !req.query.id) {
+//     res.redirect('/')
+//   } else {
+//     res.render('create', {user: user.attributes, loggedIn: loggedIn})
+//   }
+// })
 
 // Login
 app.get('/login',
