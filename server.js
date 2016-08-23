@@ -16,7 +16,10 @@ bookshelf.plugin('registry')
 // MODELS
 // User
 var User = ModelBase.extend({
-  tableName: 'users'
+  tableName: 'users',
+  teams: function() {
+    return this.hasMany(Team)
+  }
 })
 
 // Game
@@ -24,12 +27,10 @@ var Game = bookshelf.Model.extend({
   tableName: 'games',
   teams: function() {
     return this.hasMany(Team);
+  },
+  modes: function() {
+    return this.hasMany(Mode)
   }
-  // toJSON: function () {
-  //   var attributes = bookshelf.Model.prototype.toJSON.call(this)
-  //   attributes['team_count'] = this.teams().count()
-  //   console.log(attributes)
-  // }
 })
 
 // Game collection
@@ -42,6 +43,23 @@ var Team = bookshelf.Model.extend({
   tableName: 'teams',
   game: function() {
     return this.belongsTo(Game);
+  },
+  user: function() {
+    return this.belongsToMany(User, 'user_team')
+  },
+  mode: function() {
+    return this.belongsTo(Mode)
+  }
+})
+
+// Mode
+var Mode = bookshelf.Model.extend({
+  tableName: 'modes',
+  game: function() {
+    return this.belongsTo(Game)
+  },
+  teams: function() {
+    return this.belongsToMany(Team)
   }
 })
 
@@ -165,7 +183,7 @@ app.get('/api/v1/games', function(req, res){
         res.send(data.toJSON())
       })
   } else {
-    Games.query({where: {id: req.query.id}}).fetchOne({withRelated: ['teams']})
+    Games.query({where: {id: req.query.id}}).fetchOne({withRelated: ['teams', 'teams.user', 'teams.mode']})
       .then(function(data){
         res.send(data.toJSON())
       })
