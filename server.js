@@ -1,5 +1,6 @@
 var request = require('request')
 var express = require('express')
+var bodyParser = require('body-parser')
 var session = require('express-session')
 var ejs = require('ejs')
 var app = express()
@@ -10,6 +11,9 @@ var knex = require('knex')({
 })
 var bookshelf = require('bookshelf')(knex)
 var ModelBase = require('bookshelf-modelbase')(bookshelf)
+var passport = require('passport')
+var OAuth2Strategy = require('passport-oauth2').Strategy
+var shortid = require('shortid32');
 
 bookshelf.plugin('registry')
 
@@ -63,14 +67,15 @@ var Mode = bookshelf.Model.extend({
   }
 })
 
-// Discord authentication
-var passport = require('passport')
-var OAuth2Strategy = require('passport-oauth2').Strategy
+// Middleware
 
 app.use(session({ secret: 'keyboard cat' }))
 app.use(passport.initialize())
 app.use(passport.session())
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({extended:true}))
 
+// Discord authentication
 passport.serializeUser(function(user, done){
   done(null, user.id)
 })
@@ -138,6 +143,18 @@ app.get('/directory', function (req, res) {
   }
 })
 
+// Join a Team
+app.get('/team', function (req, res) {
+  var user = (req.user || {attributes: {}})
+  var loggedIn = req.isAuthenticated()
+
+  if(!loggedIn) {
+    res.redirect('/')
+  } else {
+    res.render('directory', {user: user.attributes, loggedIn: loggedIn})
+  }
+})
+
 // // Create a Game
 // app.get('/create', function (req, res) {
 //   var user = (req.user || {attributes: {}})
@@ -157,7 +174,7 @@ app.get('/login',
 app.get('/login/auth',
   passport.authenticate('oauth2', { successRedirect: '/', failureRedirect: '/login' }))
 
-// API ROUTES
+// API ROUTES - GET
 app.get('/api/v1/users', function(req, res){
   knex
     .select()
@@ -233,6 +250,26 @@ app.get('/api/v1/user_game', function(req, res){
     .then(function(data){
       res.json(data)
     })
+})
+
+// API ROUTES - POST
+app.post('/api/v1/teams', function(req, res){
+  var invite = shortid.generate()
+  var team = new Team
+  // Handle hidden value for open/closed access checkbox
+  if (Array.isArray(req.body.access)) {
+    req.body.access = 'false'
+  } else {
+    req.body.access = 'true'
+  }
+
+  console.log(req.body)
+  console.log(invite)
+
+  team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, access: req.body.access, invite: invite, mode_id: req.body.mode_id})
+
+  team.save()
+  res.redirect('/directory')
 })
 
 app.use(express.static(__dirname + '/public'))
