@@ -10,77 +10,18 @@ var knex = require('knex')({
   searchPath: 'knex,public'
 })
 var bookshelf = require('bookshelf')(knex)
-var ModelBase = require('bookshelf-modelbase')(bookshelf)
+var models = require('./models')
+var User = models.User,
+    Team = models.Team,
+    Game = models.Game,
+    Mode = models.Mode
 var passport = require('passport')
 var OAuth2Strategy = require('passport-oauth2').Strategy
 var shortid = require('shortid32');
 
 bookshelf.plugin('registry')
 
-// MODELS
-// User
-var User = ModelBase.extend({
-  tableName: 'users',
-  hasTimestamps: true,
-  teams: function() {
-    return this.belongsToMany(Team, 'user_team')
-  },
-  hasATeam: function() {
-    this.teams().count()
-      .then(function(count) {
-        if (count > 0) {
-          return true
-        } else {
-          return false
-        }
-      })
-  }
-})
-
-// Game
-var Game = bookshelf.Model.extend({
-  tableName: 'games',
-  hasTimestamps: true,
-  teams: function() {
-    return this.hasMany(Team);
-  },
-  modes: function() {
-    return this.hasMany(Mode)
-  }
-})
-
-// Team
-var Team = bookshelf.Model.extend({
-  tableName: 'teams',
-  hasTimestamps: true,
-  game: function() {
-    return this.belongsTo(Game);
-  },
-  users: function() {
-    return this.belongsToMany(User, 'user_team')
-  },
-  mode: function() {
-    return this.belongsTo(Mode)
-  },
-  addUser: function(user) {
-    this.users().attach(user)
-  }
-})
-
-// Mode
-var Mode = bookshelf.Model.extend({
-  tableName: 'modes',
-  hasTimestamps: true,
-  game: function() {
-    return this.belongsTo(Game)
-  },
-  teams: function() {
-    return this.belongsToMany(Team)
-  }
-})
-
 // Middleware
-
 app.use(session({ secret: 'keyboard cat' }))
 app.use(passport.initialize())
 app.use(passport.session())
@@ -162,7 +103,6 @@ app.get('/team', function (req, res) {
   if(!loggedIn) {
     res.redirect('/')
   } else {
-    user.hasATeam()
     res.render('team', {user: user.attributes, loggedIn: loggedIn})
   }
 })
@@ -234,24 +174,6 @@ app.get('/api/v1/friends', function(req, res){
     })
 })
 
-app.get('/api/v1/user_team', function(req, res){
-  knex
-    .select()
-    .from('user_team')
-    .then(function(data){
-      res.json(data)
-    })
-})
-
-app.get('/api/v1/user_game', function(req, res){
-  knex
-    .select()
-    .from('user_game')
-    .then(function(data){
-      res.json(data)
-    })
-})
-
 // API ROUTES - POST
 app.post('/api/v1/teams', function(req, res){
   var loggedIn = req.isAuthenticated()
@@ -259,7 +181,7 @@ app.post('/api/v1/teams', function(req, res){
   var team = new Team
   var user = req.user
 
-  if(!loggedIn) {
+  if (!loggedIn) {
     res.redirect('/')
   }
   else {
@@ -274,19 +196,15 @@ app.post('/api/v1/teams', function(req, res){
 
     team.save()
     .then(function(team){
-      if (user.hasATeam()) {
-        user.teams().destroy()
-          .then(function(user){
-            team.addUser(user)
-          })
-      } else {
-        team.addUser(user)
-      }
+      knex('user_team')
+        .where('user_id', user.id)
+        .del()
+        .then(function(){
+          team.addUser(user)
+          res.redirect('/team')
+        })
     })
-
-    res.redirect('/team')
   }
-
 })
 
 app.use(express.static(__dirname + '/public'))
