@@ -21,14 +21,26 @@ bookshelf.plugin('registry')
 // User
 var User = ModelBase.extend({
   tableName: 'users',
+  hasTimestamps: true,
   teams: function() {
-    return this.hasMany(Team)
+    return this.belongsToMany(Team, 'user_team')
+  },
+  hasATeam: function() {
+    this.teams().count()
+      .then(function(count) {
+        if (count > 0) {
+          return true
+        } else {
+          return false
+        }
+      })
   }
 })
 
 // Game
 var Game = bookshelf.Model.extend({
   tableName: 'games',
+  hasTimestamps: true,
   teams: function() {
     return this.hasMany(Team);
   },
@@ -37,28 +49,28 @@ var Game = bookshelf.Model.extend({
   }
 })
 
-// Game collection
-var Games = bookshelf.Collection.extend({
-  model: Game
-})
-
 // Team
 var Team = bookshelf.Model.extend({
   tableName: 'teams',
+  hasTimestamps: true,
   game: function() {
     return this.belongsTo(Game);
   },
-  user: function() {
+  users: function() {
     return this.belongsToMany(User, 'user_team')
   },
   mode: function() {
     return this.belongsTo(Mode)
+  },
+  addUser: function(user) {
+    this.users().attach(user)
   }
 })
 
 // Mode
 var Mode = bookshelf.Model.extend({
   tableName: 'modes',
+  hasTimestamps: true,
   game: function() {
     return this.belongsTo(Game)
   },
@@ -130,7 +142,6 @@ app.get('/', function (req, res) {
   res.render('index', {user: user.attributes, loggedIn: loggedIn})
 })
 
-
 // Join a Game
 app.get('/directory', function (req, res) {
   var user = (req.user || {attributes: {}})
@@ -151,21 +162,10 @@ app.get('/team', function (req, res) {
   if(!loggedIn) {
     res.redirect('/')
   } else {
-    res.render('directory', {user: user.attributes, loggedIn: loggedIn})
+    user.hasATeam()
+    res.render('team', {user: user.attributes, loggedIn: loggedIn})
   }
 })
-
-// // Create a Game
-// app.get('/create', function (req, res) {
-//   var user = (req.user || {attributes: {}})
-//   var loggedIn = req.isAuthenticated()
-//
-//   if(!loggedIn || !req.query.id) {
-//     res.redirect('/')
-//   } else {
-//     res.render('create', {user: user.attributes, loggedIn: loggedIn})
-//   }
-// })
 
 // Login
 app.get('/login',
@@ -195,15 +195,15 @@ app.get('/api/v1/teams', function(req, res){
 
 app.get('/api/v1/games', function(req, res){
   if (!req.query.id) {
-    Games.forge().fetch({withRelated: ['teams']})
+    Game.fetchAll({withRelated: ['teams']})
       .then(function(data){
         res.send(data.toJSON())
       })
   } else {
-    Games.query({where: {id: req.query.id}}).fetchOne({withRelated: ['teams', 'teams.user', 'teams.mode', 'modes']})
-      .then(function(data){
-        res.send(data.toJSON())
-      })
+    Game.where('id', req.query.id).fetch({withRelated: ['teams', 'teams.users', 'teams.mode', 'modes']})
+    .then(function(data){
+      res.send(data.toJSON())
+    })
   }
 })
 
@@ -254,22 +254,39 @@ app.get('/api/v1/user_game', function(req, res){
 
 // API ROUTES - POST
 app.post('/api/v1/teams', function(req, res){
+  var loggedIn = req.isAuthenticated()
   var invite = shortid.generate()
   var team = new Team
-  // Handle hidden value for open/closed access checkbox
-  if (Array.isArray(req.body.access)) {
-    req.body.access = 'false'
-  } else {
-    req.body.access = 'true'
+  var user = req.user
+
+  if(!loggedIn) {
+    res.redirect('/')
+  }
+  else {
+    // Handle hidden value for open/closed access checkbox
+    if (Array.isArray(req.body.access)) {
+      req.body.access = 'false'
+    } else {
+      req.body.access = 'true'
+    }
+
+    team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, access: req.body.access, invite: invite, mode_id: req.body.mode_id})
+
+    team.save()
+    .then(function(team){
+      if (user.hasATeam()) {
+        user.teams().destroy()
+          .then(function(user){
+            team.addUser(user)
+          })
+      } else {
+        team.addUser(user)
+      }
+    })
+
+    res.redirect('/team')
   }
 
-  console.log(req.body)
-  console.log(invite)
-
-  team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, access: req.body.access, invite: invite, mode_id: req.body.mode_id})
-
-  team.save()
-  res.redirect('/directory')
 })
 
 app.use(express.static(__dirname + '/public'))
