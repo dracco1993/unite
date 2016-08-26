@@ -17,7 +17,15 @@ var User = models.User,
     Mode = models.Mode
 var passport = require('passport')
 var OAuth2Strategy = require('passport-oauth2').Strategy
-var shortid = require('shortid32');
+var shortid = require('shortid32')
+var Pusher = require('pusher')
+
+var pusher = new Pusher({
+  appId: '241889',
+  key: '3aa26893ee89f046e2a3',
+  secret: '38b7e8bf90e6a743992a',
+  encrypted: true
+})
 
 bookshelf.plugin('registry')
 
@@ -125,12 +133,27 @@ app.get('/api/v1/users', function(req, res){
 })
 
 app.get('/api/v1/teams', function(req, res){
-  knex
-    .select()
-    .from('teams')
-    .then(function(data){
-      res.json(data)
+  var team = new Team
+  var user = req.user
+
+  if (!req.query.id) {
+    Team.fetchAll()
+      .then(function(data){
+        res.send(data.toJSON())
+      })
+  } else {
+    Team.where('id', req.query.id).fetch({withRelated: ['game', 'users', 'mode']})
+    .then(function(team){
+      knex('user_team')
+        .where('user_id', user.id)
+        .del()
+        .then(function(){
+          team.addUser(user)
+          pusher.trigger('team_' + req.query.id, 'player_joined', user)
+          res.send(team.toJSON())
+        })
     })
+  }
 })
 
 app.get('/api/v1/games', function(req, res){
@@ -192,7 +215,7 @@ app.post('/api/v1/teams', function(req, res){
       req.body.access = 'true'
     }
 
-    team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, access: req.body.access, invite: invite, mode_id: req.body.mode_id})
+    team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, access: req.body.access, invite: invite, mode_id: req.body.mode_id, creator_id: user.id})
 
     team.save()
     .then(function(team){
@@ -201,7 +224,7 @@ app.post('/api/v1/teams', function(req, res){
         .del()
         .then(function(){
           team.addUser(user)
-          res.redirect('/team')
+          res.redirect('/team?id=' + team.id)
         })
     })
   }
