@@ -115,7 +115,6 @@ app.get('/directory', function (req, res) {
 app.get('/team', function (req, res) {
   var user = (req.user || {attributes: {}})
   var loggedIn = req.isAuthenticated()
-  var server
 
   if(!loggedIn) {
     res.redirect('/')
@@ -124,8 +123,7 @@ app.get('/team', function (req, res) {
       id: req.query.id
     }).select('discord_server')
     .then(function(response){
-      server = response[0].discord_server
-      res.render('team', {user: user.attributes, loggedIn: loggedIn, discordServer: server})
+      res.render('team', {user: user.attributes, loggedIn: loggedIn})
     })
   }
 })
@@ -227,12 +225,6 @@ app.post('/api/v1/teams', function(req, res){
     res.redirect('/')
   }
   else {
-    // Handle hidden value for open/closed access checkbox
-    if (Array.isArray(req.body.access)) {
-      req.body.access = 'false'
-    } else {
-      req.body.access = 'true'
-    }
 
     discord.createServer({
       icon: serverIcon,
@@ -246,7 +238,7 @@ app.post('/api/v1/teams', function(req, res){
       }, function(err, response){
         serverInvite = response.code
 
-        team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, access: req.body.access, invite: invite, mode_id: req.body.mode_id, creator_id: user.id, discord_invite: serverInvite, discord_server: serverId})
+        team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, invite: invite, mode_id: req.body.mode_id, creator_id: user.id, discord_invite: serverInvite, discord_server: serverId})
 
         team.save()
         .then(function(team){
