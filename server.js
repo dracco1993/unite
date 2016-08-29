@@ -32,7 +32,7 @@ var pusher = new Pusher({
 // Discord bot info
 var discord = new Discord.Client({
     autorun: true,
-    token: "mfa.DjhEw1V3LRuXXJReQ93KJspoXVQiB42yxo2lT4x1akx122rI2yzkuMoJkYsbow1z5bTYxYb7bFp2O3W7iXAK"
+    token: "MjE5NjgwMjMwMTUzOTEyMzIz.CqVRJA.owTuGUzCje-36nOJsiBzHpUumkU"
 })
 
 bookshelf.plugin('registry')
@@ -115,13 +115,18 @@ app.get('/directory', function (req, res) {
 app.get('/team', function (req, res) {
   var user = (req.user || {attributes: {}})
   var loggedIn = req.isAuthenticated()
-
-  console.log(req.query)
+  var server
 
   if(!loggedIn) {
     res.redirect('/')
   } else {
-    res.render('team', {user: user.attributes, loggedIn: loggedIn})
+    knex('teams').where({
+      id: req.query.id
+    }).select('discord_server')
+    .then(function(response){
+      server = response[0].discord_server
+      res.render('team', {user: user.attributes, loggedIn: loggedIn, discordServer: server})
+    })
   }
 })
 
@@ -234,12 +239,14 @@ app.post('/api/v1/teams', function(req, res){
       name: serverName,
       region: 'us-central'
     }, function(error, response){
+      serverId = response.id
       discord.createInvite({
-        channelID: response.id
+        channelID: serverId,
+        temporary: true
       }, function(err, response){
         serverInvite = response.code
 
-        team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, access: req.body.access, invite: invite, mode_id: req.body.mode_id, creator_id: user.id, discord_invite: serverInvite})
+        team.set({game_id: req.body.game_id, seriousness: req.body.seriousness, description: req.body.description, access: req.body.access, invite: invite, mode_id: req.body.mode_id, creator_id: user.id, discord_invite: serverInvite, discord_server: serverId})
 
         team.save()
         .then(function(team){
