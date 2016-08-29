@@ -19,12 +19,20 @@ var passport = require('passport')
 var OAuth2Strategy = require('passport-oauth2').Strategy
 var shortid = require('shortid32')
 var Pusher = require('pusher')
+var Discord = require('discord.io')
 
+// Pusher info
 var pusher = new Pusher({
   appId: '241889',
   key: '3aa26893ee89f046e2a3',
   secret: '38b7e8bf90e6a743992a',
   encrypted: true
+})
+
+// Discord bot info
+var bot = new Discord.Client({
+    autorun: true,
+    token: "mfa.DjhEw1V3LRuXXJReQ93KJspoXVQiB42yxo2lT4x1akx122rI2yzkuMoJkYsbow1z5bTYxYb7bFp2O3W7iXAK"
 })
 
 bookshelf.plugin('registry')
@@ -229,6 +237,17 @@ app.post('/api/v1/teams', function(req, res){
     })
   }
 })
+
+// Discord bot code
+
+bot.on('ready', function(event) {
+  console.log('Logged in as %s - %s\n', bot.username, bot.id)
+})
+
+bot.on('disconnect', function(errMsg, code) {
+  bot.connect()
+})
+
 
 app.use(express.static(__dirname + '/public'))
 
