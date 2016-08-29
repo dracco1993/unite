@@ -20,6 +20,8 @@ var OAuth2Strategy = require('passport-oauth2').Strategy
 var shortid = require('shortid32')
 var Pusher = require('pusher')
 var Discord = require('discord.io')
+var flash = require('connect-flash')
+
 
 // Pusher info
 var pusher = new Pusher({
@@ -39,6 +41,7 @@ bookshelf.plugin('registry')
 
 // Middleware
 app.use(session({ secret: 'keyboard cat' }))
+app.use(flash())
 app.use(passport.initialize())
 app.use(passport.session())
 app.use(bodyParser.json())
@@ -95,8 +98,13 @@ app.set('view engine', 'ejs')
 app.get('/', function (req, res) {
   var user = (req.user || {attributes: {}})
   var loggedIn = req.isAuthenticated()
+  var flash = req.flash('url')
 
-  res.render('index', {user: user.attributes, loggedIn: loggedIn})
+  if(!flash[0]) {
+    res.render('index', {user: user.attributes, loggedIn: loggedIn})
+  } else {
+    res.redirect(flash[0])
+  }
 })
 
 // Join a Game
@@ -125,6 +133,23 @@ app.get('/team', function (req, res) {
     .then(function(response){
       res.render('team', {user: user.attributes, loggedIn: loggedIn})
     })
+  }
+})
+
+// Invite
+app.get('/t/:invite', function (req, res) {
+  var loggedIn = req.isAuthenticated()
+  // var user = (req.user || {attributes: {}})
+
+  if(!loggedIn) {
+    req.flash('url', req.originalUrl)
+    res.redirect('/login')
+  } else {
+    knex('teams')
+      .where('invite', req.params.invite)
+      .then(function(teams) {
+        res.redirect('/team?id=' + teams[0].id)
+      })
   }
 })
 
@@ -159,11 +184,29 @@ app.get('/api/v1/teams', function(req, res){
     .then(function(team){
       knex('user_team')
         .where('user_id', user.id)
-        .del()
-        .then(function(){
-          team.addUser(user)
-          pusher.trigger('team_' + req.query.id, 'player_joined', user)
-          res.send(team.toJSON())
+        .select('team_id')
+        .then(function(userTeams){
+          userTeams.forEach(function(userTeam){
+            console.log(userTeam.team_id)
+            pusher.trigger('team_' + userTeam.team_id, 'player_left', user)
+          })
+          // remove user from all other teams
+          knex('user_team')
+          .where('user_id', user.id)
+          .del()
+          // then add the user to the current team
+          .then(function(){
+            knex('user_team')
+            .insert({user_id: user.id, team_id: team.id})
+            // then update the team
+            .then(function(){
+              Team.where('id', req.query.id).fetch({withRelated: ['game', 'users', 'mode']})
+              .then(function(team){
+                pusher.trigger('team_' + req.query.id, 'player_joined', user)
+                res.send(team.toJSON())
+              })
+            })
+          })
         })
     })
   }
