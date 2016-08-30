@@ -21,6 +21,7 @@ var shortid = require('shortid32')
 var Pusher = require('pusher')
 var Discord = require('discord.io')
 var flash = require('connect-flash')
+var sanitizeHTML = require('sanitize-html')
 
 
 // Pusher info
@@ -64,7 +65,8 @@ passport.use(new OAuth2Strategy({
     tokenURL: 'https://discordapp.com/api/oauth2/token',
     clientID: '214912632954683394',
     clientSecret: 'EjArQSnT6-3Y59fAWDHLJPZj_fcjF-vb',
-    callbackURL: ('http://unitegamers.us' || 'http://localhost:5000') + '/login/auth'
+    // callbackURL: 'http://unitegamers.us' + '/login/auth'
+    callbackURL: 'http://localhost:5000' + '/login/auth'
   },
   function(accessToken, refreshToken, profile, cb) {
     request({
@@ -137,9 +139,8 @@ app.get('/team', function (req, res) {
 })
 
 // Invite
-app.get('/t/:invite', function (req, res) {
+app.get('/i/:invite', function (req, res) {
   var loggedIn = req.isAuthenticated()
-  // var user = (req.user || {attributes: {}})
 
   if(!loggedIn) {
     req.flash('url', req.originalUrl)
@@ -187,7 +188,6 @@ app.get('/api/v1/teams', function(req, res){
         .select('team_id')
         .then(function(userTeams){
           userTeams.forEach(function(userTeam){
-            console.log(userTeam.team_id)
             pusher.trigger('team_' + userTeam.team_id, 'player_left', user)
           })
           // remove user from all other teams
@@ -254,6 +254,17 @@ app.get('/api/v1/friends', function(req, res){
 })
 
 // API ROUTES - POST
+app.post('/api/v1/chat', function(req, res) {
+  req.body.message = sanitizeHTML(req.body.message, {
+    allowedTags: [],
+    allowedAttributes: []
+  })
+
+  pusher.trigger('team_' + req.body.team_id, 'message', req.body)
+
+  res.json(true)
+})
+
 app.post('/api/v1/teams', function(req, res){
   var loggedIn = req.isAuthenticated(),
   invite = shortid.generate(),
