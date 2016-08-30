@@ -64,7 +64,7 @@ passport.use(new OAuth2Strategy({
     tokenURL: 'https://discordapp.com/api/oauth2/token',
     clientID: '214912632954683394',
     clientSecret: 'EjArQSnT6-3Y59fAWDHLJPZj_fcjF-vb',
-    callbackURL: (process.env.HOSTNAME || 'http://localhost:5000') + '/login/auth'
+    callbackURL: ('http://unitegamers.us' || 'http://localhost:5000') + '/login/auth'
   },
   function(accessToken, refreshToken, profile, cb) {
     request({
