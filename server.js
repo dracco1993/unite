@@ -65,8 +65,8 @@ passport.use(new OAuth2Strategy({
     tokenURL: 'https://discordapp.com/api/oauth2/token',
     clientID: '214912632954683394',
     clientSecret: 'EjArQSnT6-3Y59fAWDHLJPZj_fcjF-vb',
-    // callbackURL: 'http://unitegamers.us' + '/login/auth'
-    callbackURL: 'http://localhost:5000' + '/login/auth'
+    callbackURL: 'http://unitegamers.us' + '/login/auth'
+    // callbackURL: 'http://localhost:5000' + '/login/auth'
   },
   function(accessToken, refreshToken, profile, cb) {
     request({
@@ -154,12 +154,17 @@ app.get('/i/:invite', function (req, res) {
   }
 })
 
-// Login
+// Login/Logout
 app.get('/login',
   passport.authenticate('oauth2', { scope: ['identify', 'email'] }))
 
 app.get('/login/auth',
   passport.authenticate('oauth2', { successRedirect: '/', failureRedirect: '/login' }))
+
+app.get('/logout', function(req, res){
+  req.logout()
+  res.redirect('/')
+})
 
 // API ROUTES - GET
 app.get('/api/v1/users', function(req, res){
