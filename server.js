@@ -65,8 +65,8 @@ passport.use(new OAuth2Strategy({
     tokenURL: 'https://discordapp.com/api/oauth2/token',
     clientID: '214912632954683394',
     clientSecret: 'EjArQSnT6-3Y59fAWDHLJPZj_fcjF-vb',
-    callbackURL: 'http://unitegamers.us' + '/login/auth'
-    // callbackURL: 'http://localhost:5000' + '/login/auth'
+    // callbackURL: 'http://unitegamers.us' + '/login/auth'
+    callbackURL: 'http://localhost:5000' + '/login/auth'
   },
   function(accessToken, refreshToken, profile, cb) {
     request({
@@ -133,7 +133,11 @@ app.get('/team', function (req, res) {
       id: req.query.id
     }).select('discord_server')
     .then(function(response){
-      res.render('team', {user: user.attributes, loggedIn: loggedIn})
+      if (!response[0]) {
+        res.redirect('/')
+      } else {
+        res.render('team', {user: user.attributes, loggedIn: loggedIn})
+      }
     })
   }
 })
@@ -219,7 +223,7 @@ app.get('/api/v1/teams', function(req, res){
 
 app.get('/api/v1/games', function(req, res){
   if (!req.query.id) {
-    Game.fetchAll({withRelated: ['teams']})
+    Game.fetchAll({withRelated: ['teams', 'teams.users']})
       .then(function(data){
         res.send(data.toJSON())
       })
@@ -311,12 +315,10 @@ app.post('/api/v1/teams', function(req, res){
         })
       })
     })
-
   }
 })
 
 // Discord bot code
-
 discord.on('ready', function(event) {
   console.log('Logged in as %s - %s\n', discord.username, discord.id)
 })
