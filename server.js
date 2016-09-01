@@ -288,7 +288,7 @@ app.post('/api/v1/teams', function(req, res){
     res.redirect('/')
   }
   else {
-
+    // console.log(req)
     discord.createServer({
       icon: serverIcon,
       name: serverName,
@@ -305,13 +305,7 @@ app.post('/api/v1/teams', function(req, res){
 
         team.save()
         .then(function(team){
-          knex('user_team')
-          .where('user_id', user.id)
-          .del()
-          .then(function(){
-            team.addUser(user)
-            res.redirect('/team?id=' + team.id)
-          })
+          res.redirect('/team?id=' + team.id)
         })
       })
     })
